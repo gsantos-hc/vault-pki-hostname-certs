@@ -1,8 +1,8 @@
 global "request" {
   value = {
     data = {
-      common_name = "test.client.com"
-      alt_names   = ["test", "test.client.com"]
+      common_name = "srv01.client.com"
+      alt_names   = ["srv01", "srv01.client.com"]
     }
   }
 }

@@ -1,7 +1,7 @@
 global "request" {
   value = {
     data = {
-      common_name = "test.client.com"
+      common_name = "srv01.client.com"
     }
   }
 }

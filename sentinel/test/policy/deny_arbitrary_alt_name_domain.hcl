@@ -1,7 +1,7 @@
 global "request" {
   value = {
     data = {
-      alt_names = ["test", "test.client.com"]
+      alt_names = ["srv01", "srv01.client.com"]
     }
   }
 }

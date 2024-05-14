@@ -1,7 +1,7 @@
 global "request" {
   value = {
     data = {
-      common_name = "srv01.approved.com"
+      common_name = "test"
     }
   }
 }
@@ -9,7 +9,7 @@ global "request" {
 test {
   rules = {
     has_common_name      = true
-    common_name_is_valid = true
-    main                 = true
+    common_name_is_valid = false
+    main                 = false
   }
 }
