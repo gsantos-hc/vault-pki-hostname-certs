@@ -1,0 +1,56 @@
+# Vault Sentinel policy for enabling certificate issuance to either a bare host name or a FQDN
+# under a set of approved domain names
+
+import "strings"
+
+# List of domain names for which certificates may be issued
+approved_domains = ["approved.com"]
+
+# Passes if the subject is a DNS label
+is_dns_label = func(subject) {
+	return strings.to_lower(subject) matches "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+}
+
+# Passes if the subject is a FQDN and the domain is in the approved domains list
+is_approved_domain = func(subject) {
+	approved = any approved_domains as approved_domain {
+		strings.has_suffix(strings.to_lower(subject), "." + approved_domain)
+	}
+
+	if not approved {
+		print("subject '" + subject + "' is not allowed by this policy")
+		return false
+	}
+
+	return true
+}
+
+# Passes if the request includes a common name attribute
+has_common_name = rule { "common_name" in request.data }
+
+# Passes if the request includes an alt_names attribute
+has_alt_names = rule { "alt_names" in request.data }
+
+# Passes when the request's common name attribute is either a DNS label or a FQDN with one of the
+# policy's approved domains
+common_name_is_valid = rule when has_common_name {
+	is_dns_label(request.data.common_name) or
+	is_approved_domain(request.data.common_name)
+}
+
+# Passes when every SAN in alt_names is either a DNS label or a FQDN with one of the policy's
+# approved domains
+alt_names_are_valid = rule when has_alt_names {
+	all strings.split(request.data.alt_names, ",") as name {
+		is_dns_label(name) or is_approved_domain(name)
+	}
+}
+
+# Passes if the request namespace has a data attribute
+request_has_data = rule { length(request.data) > 0 }
+
+main = rule {
+	request_has_data and
+	common_name_is_valid and
+	alt_names_are_valid
+}
