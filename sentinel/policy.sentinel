@@ -64,5 +64,7 @@ alt_names_are_valid = rule when has_alt_names {
 }
 
 main = rule {
-	common_name_is_valid and alt_names_are_valid
+	(has_common_name or has_alt_names) and
+	common_name_is_valid and
+	alt_names_are_valid
 }
