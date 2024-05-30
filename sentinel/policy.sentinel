@@ -1,0 +1,70 @@
+# Vault Sentinel policy for enabling certificate issuance to either a bare hostname or a FQDN
+# under a set of approved domain names
+
+import "strings"
+
+# List of domain names for which certificates may be issued
+approved_domains = ["approved.com"]
+
+# List of hostname prefixes for which certificates may be issued
+approved_host_prefixes = ["srv"]
+
+# Passes if the given subject has an approved prefix (case-insensitive)
+is_approved_prefix = func(name) {
+	return any approved_host_prefixes as prefix {
+		strings.has_prefix(strings.to_lower(name), strings.to_lower(prefix)) and
+		length(name) > length(prefix)
+	}
+}
+
+# Passes if the given subject is a DNS label and has an approved prefix (case-insensitive)
+is_approved_hostname = func(name) {
+	if not (strings.to_lower(name) matches "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$") {
+		return false
+	}
+
+	return is_approved_prefix(name)
+}
+
+# Passes if the subject is a FQDN, the domain is in the approved domains list, and the hostname
+# has an approved prefix (case-insensitive)
+is_approved_domain = func(name) {
+	approved = any approved_domains as approved_domain {
+		strings.has_suffix(strings.to_lower(name), "." + strings.to_lower(approved_domain)) and
+		is_approved_prefix(name)
+	}
+
+	if not approved {
+		print("subject '" + name + "' is not allowed by this policy")
+		return false
+	}
+
+	return true
+}
+
+# Passes if the request includes a common name attribute
+has_common_name = rule { request.data contains "common_name" }
+
+# Passes if the request includes an alt_names attribute
+has_alt_names = rule { request.data contains "alt_names" }
+
+# Passes when the request's common name attribute is either a DNS label or a FQDN with one of the
+# policy's approved domains
+common_name_is_valid = rule when has_common_name {
+	is_approved_hostname(request.data.common_name) or
+	is_approved_domain(request.data.common_name)
+}
+
+# Passes when every SAN in alt_names is either a DNS label or a FQDN with one of the policy's
+# approved domains
+alt_names_are_valid = rule when has_alt_names {
+	all strings.split(request.data.alt_names, ",") as name {
+		is_approved_hostname(name) or is_approved_domain(name)
+	}
+}
+
+main = rule {
+	(has_common_name or has_alt_names) and
+	common_name_is_valid and
+	alt_names_are_valid
+}
